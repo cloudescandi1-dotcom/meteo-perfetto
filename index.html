@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-1ht5SLX70CuduNP5KIDKjY0aUcn90URB8D8KXND/JpQ=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-cP+SCXojlNCSK9xSw1XHgEVXhLEysfqRmV4bTsuAYOw=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1a33">
 <meta name="description" content="Meteo Perfetto: cosa succede adesso, nelle prossime ore e nella settimana.">
@@ -254,7 +254,14 @@ const S={lat:null,lon:null,name:"",geo:null,favs:[],recent:[],data:null,marine:n
 
 // ===== Utilità =====
 const pad=n=>String(n).padStart(2,"0");
-const hm=d=>pad(d.getHours())+":"+pad(d.getMinutes());
+// I dati arrivano con l'ora locale della città (senza fuso): OFF è lo scarto dal tempo universale in secondi.
+// Gli istanti si tengono veri; per mostrarli si usa sempre l'ora locale della città, come le app meteo del telefono.
+let OFF=0;
+const parseT=s=>new Date(Date.parse(s+(s.length<=16?":00":"")+"Z")-OFF*1000);
+const LT=d=>new Date(d.getTime()+OFF*1000);
+const oraDi=d=>LT(d).getUTCHours();
+const giornoSett=d=>LT(d).toLocaleDateString("it-IT",{weekday:"short",timeZone:"UTC"});
+const hm=d=>pad(LT(d).getUTCHours())+":"+pad(LT(d).getUTCMinutes());
 const near=(a,b)=>Math.abs(a.lat-b.lat)<.01&&Math.abs(a.lon-b.lon)<.01;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function store(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
@@ -342,11 +349,12 @@ function wmean(list,i,lead,circ=false){
 function share(list,i,lead,test){ let sw=0,sy=0; list.forEach(({m,a})=>{const v=a[i]; if(v==null) return; const w=weight(m,lead); if(!w) return; sw+=w; if(test(v,m)) sy+=w;}); return sw?sy/sw:null; }
 
 function consensus(D){
+  OFF=+D.utc_offset_seconds||0;
   const H=D.hourly, n=H.time.length, now=Date.now();
   const L={}; HOURLY.forEach(v=>L[v]=series(H,v));
   const hours=[];
   for(let i=0;i<n;i++){
-    const t=new Date(H.time[i]); const lead=Math.max(0,(t-now)/36e5);
+    const t=parseT(H.time[i]); const lead=Math.max(0,(t-now)/36e5);
     const T=wmean(L.temperature_2m,i,lead); if(T.v==null) { hours.push(null); continue; }
     const P=wmean(L.precipitation,i,lead);
     const wetShare=share(L.weather_code,i,lead,c=>isWet(c));
@@ -376,10 +384,10 @@ function consensus(D){
   const M=D.minutely_15, steps=[];
   if(M&&M.time){
     const Lm=series(M,"precipitation");
-    let k0=M.time.findIndex(t=>new Date(t).getTime()>now-15*6e4); if(k0<0) k0=0;
+    let k0=M.time.findIndex(t=>parseT(t).getTime()>now-15*6e4); if(k0<0) k0=0;
     for(let k=k0;k<Math.min(M.time.length,k0+8);k++){
       const sh=share(Lm,k,0,v=>v>=.05), mm=wmean(Lm,k,0).v;
-      steps.push({t:new Date(M.time[k]),share:sh??0,mm:mm||0});
+      steps.push({t:parseT(M.time[k]),share:sh??0,mm:mm||0});
     }
   }
   // Alba e tramonto
@@ -482,7 +490,7 @@ function officialAlerts(){
   return out.sort((x,y)=>y.l-x.l||x.da-y.da);
 }
 function periodo(a){
-  const f=t=>new Date(t).toLocaleString("it-IT",{weekday:"short",hour:"2-digit",minute:"2-digit"});
+  const f=t=>giornoSett(new Date(t))+" "+hm(new Date(t));
   return a.da<=Date.now()?`In corso fino a ${f(a.a)}`:`Da ${f(a.da)} a ${f(a.a)}`;
 }
 async function loadUsAlerts(){
@@ -507,7 +515,7 @@ function nowcastText(C,R,cur){
 // ===== Avvisi calcolati sulle prossime 24 ore =====
 function alerts(C){
   const now=Date.now(), next=C.hours.filter(h=>h&&h.t.getTime()>=now-36e5&&h.t.getTime()<=now+24*36e5); const out=[];
-  const at=h=>`${h.t.toLocaleDateString("it-IT",{weekday:"short"})} ${pad(h.t.getHours())}:00`;
+  const at=h=>`${giornoSett(h.t)} ${pad(oraDi(h.t))}:00`;
   const maxBy=(k)=>next.reduce((m,h)=>h[k]!=null&&(!m||h[k]>m[k])?h:m,null);
   const g=maxBy("gust"); if(g&&g.gust>=34) out.push(["red","Vento forte",`Raffiche fino a ${Math.round(g.gust)} nodi, ${at(g)}`]); else if(g&&g.gust>=25) out.push(["","Vento sostenuto",`Raffiche fino a ${Math.round(g.gust)} nodi, ${at(g)}`]);
   const st=next.find(h=>isStorm(h.code)); if(st) out.push(["red","Temporali",`Possibili da ${at(st)}`]);
@@ -539,7 +547,7 @@ function render(){
   document.body.dataset.sky=skyFor(cur.code,cur.day);
   // Stesso colore pieno anche per la barra del browser, così la zona dell'orologio non viene sfumata
   const tc=getComputedStyle(document.body).getPropertyValue("--sky1").trim(); if(tc) document.querySelector('meta[name="theme-color"]').setAttribute("content",tc);
-  const today=C.hours.filter(h=>h&&h.t.toDateString()===new Date().toDateString());
+  const oggi=localDate(new Date()), today=C.hours.filter(h=>h&&localDate(h.t)===oggi);
   const tmax=Math.max(...today.map(h=>h.temp)), tmin=Math.min(...today.map(h=>h.temp));
   const [rl,rc]=reliability(cur);
   const st=C.steps, maxmm=Math.max(.4,...st.map(s=>s.mm));
@@ -619,7 +627,7 @@ function render(){
 // Probabilità di pioggia: quota pesata dei modelli che la prevedono, arrotondata al 10%
 const probTxt=p=>p>=.1?"💧"+Math.min(100,Math.round(p*10)*10)+"%":"";
 const UMB=wet=>`<svg viewBox="0 0 24 24" fill="none" stroke="${wet?"#7cc8ff":"#7ee2b8"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${wet?'<path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v7a2 2 0 0 1-4 0"/>':'<path d="M5 12l5 5 9-10"/>'}</svg>`;
-function localDate(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function localDate(d){ return LT(d).toISOString().slice(0,10); }
 function sunIcon(rise){
   return `<svg class="ico" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 46a14 14 0 0 1 28 0z" fill="#ffd36b"/><line x1="10" y1="48" x2="54" y2="48" stroke="#ffd36b" stroke-width="3" stroke-linecap="round"/><path d="${rise?"M32 30V12M25 19l7-7 7 7":"M32 12v18M25 23l7 7 7-7"}" fill="none" stroke="#ffd36b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
@@ -629,14 +637,14 @@ function hourly(C){
   S.hcols=hs;
   // Alba e tramonto entrano nella striscia all'orario esatto
   const t0=hs[0].t, t1=hs[hs.length-1].t, ev=[];
-  Object.values(C.sun).forEach(v=>[["rise",true],["set",false]].forEach(([k,rise])=>{ if(!v[k]) return; const t=new Date(v[k]); if(t>t0&&t<t1) ev.push({t,rise,txt:v[k].slice(11,16)}); }));
+  Object.values(C.sun).forEach(v=>[["rise",true],["set",false]].forEach(([k,rise])=>{ if(!v[k]) return; const t=parseT(v[k]); if(t>t0&&t<t1) ev.push({t,rise,txt:v[k].slice(11,16)}); }));
   const items=[...hs.map((h,k)=>({t:h.t,h,k})),...ev.map(e=>({t:e.t,e}))].sort((a,b)=>a.t-b.t);
   return `<div class="hrow">${items.map(it=>{
     if(it.e) return `<div class="hcol ev"><span class="t">${esc(it.e.txt)}</span>${sunIcon(it.e.rise)}<span class="prob"></span><span class="deg ev-lbl">${it.e.rise?"Alba":"Tramonto"}</span></div>`;
-    const h=it.h, k=it.k, newDay=k>0&&h.t.getHours()===0;
+    const h=it.h, k=it.k, newDay=k>0&&oraDi(h.t)===0;
     return `<div class="hcol${k===0?" now-col":""}">
       ${newDay?`<span class="day-sep"></span>`:""}
-      <span class="t"${newDay?' style="color:var(--warn);font-weight:700"':""}>${k===0?"Ora":newDay?h.t.toLocaleDateString("it-IT",{weekday:"short"}):pad(h.t.getHours())}</span>
+      <span class="t"${newDay?' style="color:var(--warn);font-weight:700"':""}>${k===0?"Ora":newDay?giornoSett(h.t):pad(oraDi(h.t))}</span>
       ${icon(h.code,h.day)}
       <span class="prob">${isWet(h.code)?probTxt(h.prShare):""}</span>
       <span class="deg" data-temp="${h.temp}">${Math.round(h.temp)}°</span>
@@ -658,7 +666,7 @@ function drawTempLine(){
 function daily(C){
   const byDay={}; C.hours.forEach(h=>{ if(!h) return; const k=localDate(h.t); (byDay[k]=byDay[k]||[]).push(h); });
   const keys=Object.keys(byDay).filter(k=>k>=localDate(new Date())).slice(0,7);
-  const days=keys.map(k=>{ const hs=byDay[k]; const daytime=hs.filter(h=>h.t.getHours()>=7&&h.t.getHours()<=20); const pool=daytime.length?daytime:hs;
+  const days=keys.map(k=>{ const hs=byDay[k]; const daytime=hs.filter(h=>oraDi(h.t)>=7&&oraDi(h.t)<=20); const pool=daytime.length?daytime:hs;
     const wet=pool.filter(h=>isWet(h.code)); let code;
     if(wet.length>=2){ code=wet.some(h=>isStorm(h.code))?95:wet.reduce((m,h)=>h.code>m?h.code:m,0); if(code>=80&&code<95) code=wet.length>=6?63:80; }
     else { const cc=pool.reduce((s,h)=>s+h.code,0)/pool.length; code=pool.some(h=>h.code===45)&&cc>2.5?45:Math.round(Math.min(3,cc)); }
@@ -673,7 +681,7 @@ function daily(C){
 }
 function marineNow(){
   const M=S.marine; if(!M) return null;
-  const now=new Date(); let i=0; for(let k=0;k<M.hourly.time.length;k++){ if(new Date(M.hourly.time[k])<=now) i=k; else break; }
+  const now=new Date(); let i=0; for(let k=0;k<M.hourly.time.length;k++){ if(parseT(M.hourly.time[k])<=now) i=k; else break; }
   const wh=M.hourly.wave_height[i]; const st=seaState(wh); if(st==null) return null;
   const sl=M.hourly.sea_level_height_msl; let tide=null, cur=null;
   if(sl&&sl[i]!=null&&sl[i+1]!=null){ cur=sl[i]; tide=sl[i+1]>sl[i]?"Crescente":"Calante"; }
