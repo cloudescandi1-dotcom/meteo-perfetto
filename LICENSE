@@ -1,0 +1,86 @@
+METEO PERFETTO — LICENZA PROPRIETARIA / PROPRIETARY LICENSE
+Copyright © 2026 Scandi. Tutti i diritti riservati. All rights reserved.
+
+================================================================
+ITALIANO
+================================================================
+
+Il presente software, denominato "Meteo Perfetto", comprensivo del codice
+sorgente, del design, dell'interfaccia grafica, del logo (rosa dei venti) e di
+ogni file associato (di seguito, "il Software"), è di PROPRIETÀ ESCLUSIVA di
+Scandi (di seguito, "il Titolare") ed è protetto dalla legge sul diritto
+d'autore (L. 22 aprile 1941, n. 633 e successive modifiche) e dalle convenzioni
+internazionali applicabili.
+
+TUTTI I DIRITTI SONO RISERVATI.
+
+Senza il preventivo consenso scritto ed esplicito del Titolare è espressamente
+VIETATO, a chiunque e per qualsiasi finalità (personale, didattica o
+commerciale):
+
+  1. copiare, riprodurre, scaricare in modo permanente, memorizzare, distribuire,
+     pubblicare, ripubblicare, condividere o rendere altrimenti disponibile il
+     Software o qualsiasi sua parte;
+  2. modificare, adattare, tradurre, decompilare o creare opere derivate basate
+     sul Software;
+  3. utilizzare il Software, in tutto o in parte, per realizzare prodotti o
+     servizi propri o di terzi;
+  4. rimuovere, occultare o alterare le note di copyright, i marchi o la presente
+     licenza.
+
+La semplice consultazione dell'applicazione tramite il suo indirizzo web
+ufficiale, per uso personale e non commerciale, non costituisce autorizzazione
+ad alcuno degli atti sopra vietati.
+
+Qualsiasi uso non autorizzato costituisce violazione del diritto d'autore e
+sarà PERSEGUITO NELLE COMPETENTI SEDI LEGALI, civili e penali, con richiesta di
+inibitoria e di risarcimento di tutti i danni, ai sensi della normativa italiana
+e internazionale vigente.
+
+Per richieste di licenza, autorizzazioni o collaborazioni contattare il
+Titolare: Scandi — scandi7@icloud.com
+
+================================================================
+ENGLISH
+================================================================
+
+This software, named "Meteo Perfetto", including its source code, design, user
+interface, logo (compass rose) and all associated files (the "Software"), is the
+EXCLUSIVE PROPERTY of Scandi (the "Owner") and is protected by copyright law and
+applicable international treaties.
+
+ALL RIGHTS RESERVED.
+
+Without the Owner's prior, explicit, written consent, it is expressly PROHIBITED
+for anyone, for any purpose (personal, educational or commercial), to: copy,
+reproduce, permanently store, distribute, publish, share or otherwise make
+available the Software or any part of it; modify, adapt, translate, decompile or
+create derivative works; use the Software, in whole or in part, to build one's
+own or third-party products or services; or remove, hide or alter the copyright
+notices, trademarks or this license.
+
+Any unauthorized use constitutes copyright infringement and WILL BE PROSECUTED IN
+THE COMPETENT COURTS, seeking injunctive relief and full compensation for
+damages, under applicable national and international law.
+
+For license requests, permissions or partnerships, contact the Owner: Scandi —
+scandi7@icloud.com
+
+================================================================
+COMPONENTI DI TERZE PARTI / THIRD-PARTY COMPONENTS
+================================================================
+
+Questa licenza si applica esclusivamente al codice e ai contenuti ORIGINALI del
+Titolare. Il Software si avvale di servizi e librerie di terze parti che
+restano soggetti alle rispettive licenze e condizioni d'uso, tra cui:
+This license applies only to the Owner's ORIGINAL code and content. The Software
+uses third-party services and libraries that remain subject to their own
+licenses and terms, including:
+
+  - Leaflet (BSD-2-Clause) — https://leafletjs.com
+  - Dati meteo / weather data: Open-Meteo — https://open-meteo.com
+  - Radar: RainViewer — https://www.rainviewer.com
+  - Mappe / map tiles: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright
+
+Il Titolare non rivendica alcun diritto su tali componenti di terze parti.
+The Owner claims no rights over such third-party components.
