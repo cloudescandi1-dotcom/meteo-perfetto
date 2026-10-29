@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-3SObSWiT3OsoT8wGi/i2O1K6FrMtaNA3FXkb0u3E8Qw=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-irHNJqdGl2IiIdRtQZZmlDn7RrXrrhaHQC4e521LCX4=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1a33">
 <meta name="description" content="Meteo Perfetto: cosa succede adesso, nelle prossime ore e nella settimana.">
@@ -518,7 +518,7 @@ function render(){
     <section class="card hourly a-hours">
       <h2>Prossime 48 ore</h2>
       <div class="hscroll" id="hscroll">${hourly(C)}</div>
-      <div class="note">💧 % = probabilità che piova in quell'ora · barre azzurre = millimetri di pioggia previsti · in basso il vento in nodi, la freccia indica dove soffia</div>
+      <div class="note">💧 % = probabilità di pioggia nelle ore in cui è prevista · barre azzurre = millimetri di pioggia previsti · in basso il vento in nodi, la freccia indica dove soffia</div>
     </section>
 
     <section class="card a-days">
@@ -565,7 +565,7 @@ function hourly(C){
       ${newDay?`<span class="day-sep"></span>`:""}
       <span class="t"${newDay?' style="color:var(--warn);font-weight:700"':""}>${k===0?"Ora":newDay?h.t.toLocaleDateString("it-IT",{weekday:"short"}):pad(h.t.getHours())}</span>
       ${icon(h.code,h.day)}
-      <span class="prob">${probTxt(h.prShare)}</span>
+      <span class="prob">${isWet(h.code)?probTxt(h.prShare):""}</span>
       <span class="deg" data-temp="${h.temp}">${Math.round(h.temp)}°</span>
       <span class="rain">${h.pr?`<i style="height:${Math.max(3,h.pr/maxPr*38)}px"></i>`:""}</span>
       <span class="mm">${h.pr?(h.pr<1?h.pr.toFixed(1):Math.round(h.pr))+" mm":""}</span>
@@ -596,7 +596,7 @@ function daily(C){
     const name=k===0?"Oggi":k===1?"Domani":dt.toLocaleDateString("it-IT",{weekday:"short"});
     return `<div class="day"><div class="dn">${name}<small>${dt.getDate()}/${dt.getMonth()+1}</small></div>${icon(d.code,true)}
       <div class="range"><span class="lo">${Math.round(d.lo)}°</span><span class="track"><span class="fill" style="left:${(d.lo-gmn)/sp*100}%;right:${(gmx-d.hi)/sp*100}%"></span></span><span class="hi">${Math.round(d.hi)}°</span></div>
-      <div class="pr">${d.prob>=.1?`<b>${probTxt(d.prob)}</b><br>`:""}${d.pr>=.5?Math.round(d.pr)+" mm":""}${d.gust>=25?`<br><span style="color:var(--warn)">${Math.round(d.gust)} kn</span>`:""}</div></div>`; }).join("");
+      <div class="pr">${d.pr>=.5||isWet(d.code)?`<b>${probTxt(d.prob)}</b><br>`:""}${d.pr>=.5?Math.round(d.pr)+" mm":""}${d.gust>=25?`<br><span style="color:var(--warn)">${Math.round(d.gust)} kn</span>`:""}</div></div>`; }).join("");
 }
 function marineNow(){
   const M=S.marine; if(!M) return null;
