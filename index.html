@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-KrtR/RtKSBjszw3TwqobFBxdJ4QYCWmCbYLv8UZP/+o=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-3SObSWiT3OsoT8wGi/i2O1K6FrMtaNA3FXkb0u3E8Qw=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1a33">
 <meta name="description" content="Meteo Perfetto: cosa succede adesso, nelle prossime ore e nella settimana.">
@@ -107,7 +107,8 @@
   .hcol .deg{font-size:15px;font-weight:600;height:62px;display:flex;align-items:flex-start;justify-content:center}
   .hcol .rain{height:38px;width:22px;display:flex;align-items:flex-end;justify-content:center}
   .hcol .rain i{display:block;width:16px;background:var(--acc);border-radius:4px 4px 1px 1px;opacity:.85}
-  .hcol .mm{font-size:11px;color:var(--acc);height:14px}
+  .hcol .mm{font-size:11px;color:var(--acc);height:14px;white-space:nowrap}
+  .hcol .prob{font-size:12px;color:var(--acc);height:15px;font-weight:600;white-space:nowrap}
   .hcol .wind{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:2px}
   .hcol .day-sep{position:absolute;left:-1px;top:0;bottom:0;border-left:1px dashed rgba(255,255,255,.18)}
   .hcol .day-lbl{position:absolute;top:-2px;left:4px;font-size:10px;color:var(--warn);white-space:nowrap}
@@ -115,7 +116,7 @@
   .arrow{display:inline-block;width:12px;height:12px}
 
   /* Giorni */
-  .day{display:grid;grid-template-columns:62px 34px 1fr 52px;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)}
+  .day{display:grid;grid-template-columns:62px 34px 1fr 64px;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)}
   .day:first-of-type{border-top:0}
   .day .dn{font-weight:600}
   .day .dn small{display:block;color:var(--mut);font-weight:400;font-size:12px}
@@ -517,6 +518,7 @@ function render(){
     <section class="card hourly a-hours">
       <h2>Prossime 48 ore</h2>
       <div class="hscroll" id="hscroll">${hourly(C)}</div>
+      <div class="note">💧 % = probabilità che piova in quell'ora · barre azzurre = millimetri di pioggia previsti · in basso il vento in nodi, la freccia indica dove soffia</div>
     </section>
 
     <section class="card a-days">
@@ -549,6 +551,8 @@ function render(){
   setupMap();
   updateStar();
 }
+// Probabilità di pioggia: quota pesata dei modelli che la prevedono, arrotondata al 10%
+const probTxt=p=>p>=.1?"💧"+Math.min(100,Math.round(p*10)*10)+"%":"";
 const UMB=wet=>`<svg viewBox="0 0 24 24" fill="none" stroke="${wet?"#7cc8ff":"#7ee2b8"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${wet?'<path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v7a2 2 0 0 1-4 0"/>':'<path d="M5 12l5 5 9-10"/>'}</svg>`;
 function localDate(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function hourly(C){
@@ -561,9 +565,10 @@ function hourly(C){
       ${newDay?`<span class="day-sep"></span>`:""}
       <span class="t"${newDay?' style="color:var(--warn);font-weight:700"':""}>${k===0?"Ora":newDay?h.t.toLocaleDateString("it-IT",{weekday:"short"}):pad(h.t.getHours())}</span>
       ${icon(h.code,h.day)}
+      <span class="prob">${probTxt(h.prShare)}</span>
       <span class="deg" data-temp="${h.temp}">${Math.round(h.temp)}°</span>
       <span class="rain">${h.pr?`<i style="height:${Math.max(3,h.pr/maxPr*38)}px"></i>`:""}</span>
-      <span class="mm">${h.pr?(h.pr<1?h.pr.toFixed(1):Math.round(h.pr)):""}</span>
+      <span class="mm">${h.pr?(h.pr<1?h.pr.toFixed(1):Math.round(h.pr))+" mm":""}</span>
       <span class="wind">${h.dir!=null?arrow(h.dir):""}${Math.round(h.wind)}</span>
     </div>`;}).join("")}<svg class="tline" id="tline"></svg></div>`;
 }
@@ -584,14 +589,14 @@ function daily(C){
     const wet=pool.filter(h=>isWet(h.code)); let code;
     if(wet.length>=2){ code=wet.some(h=>isStorm(h.code))?95:wet.reduce((m,h)=>h.code>m?h.code:m,0); if(code>=80&&code<95) code=wet.length>=6?63:80; }
     else { const cc=pool.reduce((s,h)=>s+h.code,0)/pool.length; code=pool.some(h=>h.code===45)&&cc>2.5?45:Math.round(Math.min(3,cc)); }
-    return {k,code,hi:Math.max(...hs.map(h=>h.temp)),lo:Math.min(...hs.map(h=>h.temp)),pr:hs.reduce((s,h)=>s+(h.pr||0),0),gust:Math.max(...hs.map(h=>h.gust||0))};
+    return {k,code,prob:Math.max(...hs.map(h=>h.prShare||0)),hi:Math.max(...hs.map(h=>h.temp)),lo:Math.min(...hs.map(h=>h.temp)),pr:hs.reduce((s,h)=>s+(h.pr||0),0),gust:Math.max(...hs.map(h=>h.gust||0))};
   });
   const gmx=Math.max(...days.map(d=>d.hi)), gmn=Math.min(...days.map(d=>d.lo)), sp=Math.max(1,gmx-gmn);
   return days.map((d,k)=>{ const dt=new Date(d.k+"T12:00");
     const name=k===0?"Oggi":k===1?"Domani":dt.toLocaleDateString("it-IT",{weekday:"short"});
     return `<div class="day"><div class="dn">${name}<small>${dt.getDate()}/${dt.getMonth()+1}</small></div>${icon(d.code,true)}
       <div class="range"><span class="lo">${Math.round(d.lo)}°</span><span class="track"><span class="fill" style="left:${(d.lo-gmn)/sp*100}%;right:${(gmx-d.hi)/sp*100}%"></span></span><span class="hi">${Math.round(d.hi)}°</span></div>
-      <div class="pr">${d.pr>=.5?Math.round(d.pr)+" mm":""}${d.gust>=25?`<br><span style="color:var(--warn)">${Math.round(d.gust)} kn</span>`:""}</div></div>`; }).join("");
+      <div class="pr">${d.prob>=.1?`<b>${probTxt(d.prob)}</b><br>`:""}${d.pr>=.5?Math.round(d.pr)+" mm":""}${d.gust>=25?`<br><span style="color:var(--warn)">${Math.round(d.gust)} kn</span>`:""}</div></div>`; }).join("");
 }
 function marineNow(){
   const M=S.marine; if(!M) return null;

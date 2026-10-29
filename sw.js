@@ -1,6 +1,6 @@
 // Tiene in memoria la pagina, così l'app si apre anche senza rete.
 // I dati meteo passano sempre dalla rete: se manca, la pagina usa l'ultimo salvataggio.
-const CACHE = "meteo-perfetto-v1";
+const CACHE = "meteo-perfetto-v2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"];
 
