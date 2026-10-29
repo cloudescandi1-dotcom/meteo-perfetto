@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-2sOnhMTkpv1UQ7lFMH4jjpGDzfpNvck8zvAmk09Pd10=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-1ht5SLX70CuduNP5KIDKjY0aUcn90URB8D8KXND/JpQ=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1a33">
 <meta name="description" content="Meteo Perfetto: cosa succede adesso, nelle prossime ore e nella settimana.">
@@ -171,9 +171,19 @@
   footer{text-align:center;color:var(--mut);font-size:11px;margin-top:22px;line-height:1.7}
   footer a{color:var(--mut)}
   .hidden{display:none!important}
+  .topband{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--sky1);z-index:900;pointer-events:none;transition:background .6s}
+  .official{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:14px;margin-bottom:8px;border:1px solid}
+  .official b{display:block}
+  .official small{display:block;color:var(--mut);margin-top:2px}
+  .official.l2{background:rgba(255,211,107,.16);border-color:rgba(255,211,107,.55)}
+  .official.l3{background:rgba(255,154,75,.18);border-color:rgba(255,154,75,.6)}
+  .official.l4{background:rgba(255,107,107,.2);border-color:rgba(255,107,107,.65)}
+  .official .dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px;margin-top:4px}
+  .l2 .dot{background:#ffd36b}.l3 .dot{background:#ff9a4b}.l4 .dot{background:#ff6b6b}
 </style>
 </head>
 <body data-sky="sereno">
+<div class="topband" aria-hidden="true"></div>
 <div class="wrap">
   <header class="top">
     <img class="logo" src="icon.svg" alt="">
@@ -431,7 +441,55 @@ function buildNow(C,R){
     }
     cur.observed=true;
   }
+  const O=S.obs;
+  if(O){
+    // Misura vera dell'aeroporto più vicino: pesa di più quanto più è vicino
+    const w=O.dist<8?.8:O.dist<15?.6:.4, dz=(O.elev??S.elev??0)-(S.elev??O.elev??0);
+    if(Math.abs(dz)<=300){ const t=w*(O.temp+dz*.0065)+(1-w)*cur.temp; cur.feel+=t-cur.temp; cur.temp=t; }
+    const fen=O.wx.split(/\s+/).filter(x=>x&&!x.startsWith("VC"));
+    const piove=fen.some(x=>/(RA|DZ|SH|TS|SN|GR|GS|PL)/.test(x)), neve=fen.some(x=>/SN/.test(x)), tuoni=fen.some(x=>/TS/.test(x));
+    if(!(R&&R.covered)&&O.dist<20){
+      if(piove&&!isWet(cur.code)){ cur.code=tuoni?95:neve?71:61; cur.pr=Math.max(cur.pr,.2); }
+      else if(!piove&&isWet(cur.code)){ cur.code=3; cur.pr=0; }
+    }
+    if(isWet(cur.code)&&tuoni) cur.code=95;
+    if(!isWet(cur.code)&&O.dist<20){
+      if(fen.some(x=>/^(FZ)?FG$/.test(x))) cur.code=45;
+      else if(O.cov!=null) cur.code=[0,1,2,3,3][O.cov];
+    }
+  }
   return cur;
+}
+function nearStation(D){
+  const L=D&&D.s; if(!L) return null; const nowMin=Date.now()/6e4; let best=null;
+  for(const s of L){ if(nowMin-s[4]>100) continue; const d=km(S.lat,S.lon,s[1],s[2]); if(d<=25&&(!best||d<best.dist)) best={dist:d,elev:s[3],temp:s[5],wx:String(s[7]||""),cov:s[8]}; }
+  return best;
+}
+function km(a,b,c,d){ const r=Math.PI/180, x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2; return 12742*Math.asin(Math.sqrt(x)); }
+
+// ===== Allerte ufficiali =====
+const chiaveNome=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(e|and|et|und|y)\b/g," ").replace(/[^a-z]/g,"");
+function officialAlerts(){
+  const now=Date.now(), out=[];
+  const nomi=[S.geo&&S.geo.region,S.geo&&S.geo.admin2,S.name].map(chiaveNome).filter(n=>n.length>3);
+  ((S.allerte&&S.allerte.a)||[]).forEach(a=>{
+    const fine=new Date(a.a).getTime(), inizio=new Date(a.da).getTime();
+    if(fine<now||inizio>now+48*36e5) return;
+    if(!a.n.some(n=>nomi.some(m=>n===m||(n.length>5&&m.length>5&&(n.includes(m)||m.includes(n)))))) return;
+    out.push({l:a.l,titolo:`Allerta ${["","","gialla","arancione","rossa"][a.l]||""} per ${a.t}`,da:inizio,a:fine,x:/^(nessun|no special)/i.test(a.x)?"":a.x});
+  });
+  (S.usAlerts||[]).forEach(a=>out.push(a));
+  return out.sort((x,y)=>y.l-x.l||x.da-y.da);
+}
+function periodo(a){
+  const f=t=>new Date(t).toLocaleString("it-IT",{weekday:"short",hour:"2-digit",minute:"2-digit"});
+  return a.da<=Date.now()?`In corso fino a ${f(a.a)}`:`Da ${f(a.da)} a ${f(a.a)}`;
+}
+async function loadUsAlerts(){
+  if(!S.geo||(S.geo.cc||"").toUpperCase()!=="US") return [];
+  const j=await fetchJSON(`https://api.weather.gov/alerts/active?point=${S.lat.toFixed(4)},${S.lon.toFixed(4)}`,0);
+  const lv={Extreme:4,Severe:3,Moderate:2};
+  return ((j&&j.features)||[]).map(f=>f.properties).filter(p=>lv[p.severity]).map(p=>({l:lv[p.severity],titolo:p.event,da:new Date(p.onset||p.effective).getTime(),a:new Date(p.ends||p.expires).getTime(),x:p.headline||""}));
 }
 function nowcastText(C,R,cur){
   const st=C.steps; const wetNow=isWet(cur.code);
@@ -479,6 +537,8 @@ function render(){
   const C=S.cons, R=S.radar; if(!C) return;
   const cur=buildNow(C,R); S.cur=cur;
   document.body.dataset.sky=skyFor(cur.code,cur.day);
+  // Stesso colore pieno anche per la barra del browser, così la zona dell'orologio non viene sfumata
+  const tc=getComputedStyle(document.body).getPropertyValue("--sky1").trim(); if(tc) document.querySelector('meta[name="theme-color"]').setAttribute("content",tc);
   const today=C.hours.filter(h=>h&&h.t.toDateString()===new Date().toDateString());
   const tmax=Math.max(...today.map(h=>h.temp)), tmin=Math.min(...today.map(h=>h.temp));
   const [rl,rc]=reliability(cur);
@@ -487,7 +547,7 @@ function render(){
   const marine=marineNow();
   const ds=new Date().toISOString().slice(0,10), sun=C.sun[Object.keys(C.sun).find(k=>k===localDate(new Date()))]||{};
   const moon=moonPhase(new Date());
-  const al=alerts(C), link=alertLink();
+  const al=alerts(C), link=alertLink(), offi=officialAlerts();
 
   $("#app").innerHTML=`
   <div class="grid">
@@ -504,6 +564,7 @@ function render(){
         <div class="msg">${UMB(isWet(cur.code)||st.some(s=>s.share>=.5))} ${nowcastText(C,R,cur)}</div>
         ${st.length?`<div class="bars">${bars}</div><div class="bars-lbl"><span>Ora</span><span>${hm(st[Math.min(3,st.length-1)].t)}</span><span>${hm(st[st.length-1].t)}</span></div>`:""}
       </div>
+      ${offi.length?offi.slice(0,2).map(a=>`<div class="official l${a.l}"><span class="dot"></span><div><b>${esc(a.titolo)}</b><small>${esc(periodo(a))}</small></div></div>`).join(""):""}
       <div class="facts">
         <div class="fact"><small>Vento</small><b>${Math.round(cur.wind)} kn</b><em>${arrow(cur.dir)} da ${dirTxt(cur.dir)}</em></div>
         <div class="fact"><small>Raffiche</small><b>${Math.round(cur.gust)} kn</b></div>
@@ -531,8 +592,9 @@ function render(){
 
     <section class="card a-avv">
       <h2>Avvisi</h2>
-      ${al.length?al.map(([c,t,d])=>`<div class="alert ${c}">⚠️<div><b>${t}</b><small>${d}</small></div></div>`).join(""):`<div class="alert ok">✅<div><b>Nessun avviso</b><small>Niente di rilevante nelle prossime 24 ore</small></div></div>`}
-      <div class="note">Avvisi calcolati dalle previsioni. Per le allerte ufficiali apri le <a href="${link.url}" target="_blank" rel="noopener">${link.label}</a>.</div>
+      ${offi.map(a=>`<div class="official l${a.l}"><span class="dot"></span><div><b>${esc(a.titolo)}</b><small>${esc(periodo(a))}${a.x?"<br>"+esc(a.x):""}</small></div></div>`).join("")}
+      ${al.length?al.map(([c,t,d])=>`<div class="alert ${c}">⚠️<div><b>${t}</b><small>${d}</small></div></div>`).join(""):`<div class="alert ok">✅<div><b>${offi.length?"Nient'altro dalle previsioni":"Nessun avviso"}</b><small>Niente di rilevante nelle prossime 24 ore</small></div></div>`}
+      <div class="note">Gli avvisi colorati sono le allerte ufficiali; gli altri sono calcolati dalle previsioni. Per i dettagli apri le <a href="${link.url}" target="_blank" rel="noopener">${link.label}</a>.</div>
       <button class="notify" id="notifyBtn">${S.notify?"🔔 Ti avviso se sta per piovere":"🔕 Avvisami se sta per piovere"}</button>
       <h2 style="margin-top:18px">Sole e luna</h2>
       <div class="details">
@@ -657,19 +719,27 @@ let sugT=null;
 $("#q").addEventListener("input",()=>{ clearTimeout(sugT); const v=$("#q").value.trim(); if(v.length<2){$("#sug").innerHTML="";return;}
   sugT=setTimeout(async()=>{ const j=await fetchJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=6&language=it&format=json`,0); const res=(j&&j.results)||[];
     $("#sug").innerHTML=res.map((r,k)=>`<div class="row"><span class="nm" data-s="${k}">${esc([r.name,r.admin1,r.country].filter(Boolean).join(", "))}</span></div>`).join("");
-    document.querySelectorAll("[data-s]").forEach(e=>e.onclick=()=>{ const r=res[+e.dataset.s]; closeSheet(); setPlace(r.latitude,r.longitude,r.name,{cc:r.country_code,country:r.country,region:r.admin1}); });
+    document.querySelectorAll("[data-s]").forEach(e=>e.onclick=()=>{ const r=res[+e.dataset.s]; closeSheet(); setPlace(r.latitude,r.longitude,r.name,{cc:r.country_code,country:r.country,region:r.admin1,admin2:r.admin2}); });
   },280); });
 $("#gpsBtn").onclick=()=>{ closeSheet(); locate(); };
 function locate(fallback){
   if(!navigator.geolocation){ if(fallback) fallback(); return; }
-  navigator.geolocation.getCurrentPosition(p=>setPlace(p.coords.latitude,p.coords.longitude,"La mia posizione"),()=>{ if(fallback) fallback(); else showErr("Posizione non concessa. Tocca il nome in alto per cercare una città."); },{enableHighAccuracy:true,timeout:10000});
+  navigator.geolocation.getCurrentPosition(p=>placeFromGps(p.coords.latitude,p.coords.longitude),()=>{ if(fallback) fallback(); else showErr("Posizione non concessa. Tocca il nome in alto per cercare una città."); },{enableHighAccuracy:true,timeout:10000});
+}
+async function placeFromGps(lat,lon){
+  const j=await fetchJSON(`https://api-bdc.io/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=it`,0);
+  if(!j){ setPlace(lat,lon,"La mia posizione"); return; }
+  const prov=((j.localityInfo&&j.localityInfo.administrative)||[]).find(a=>a.adminLevel===6);
+  setPlace(lat,lon,j.city||j.locality||"La mia posizione",{cc:j.countryCode,country:j.countryName,region:j.principalSubdivision,admin2:prov&&prov.name});
 }
 function setPlace(lat,lon,name,geo){
   lat=+lat; lon=+lon;
   if(!isFinite(lat)||!isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){ lat=44.0807; lon=12.5276; name="Viserba (Rimini)"; geo=null; }
-  S.lat=lat; S.lon=lon; S.name=String(name||"").replace(/\s*\((Provincia|Province|Città metropolitana)[^)]*\)\s*$/i,"").slice(0,80); S.geo=geo&&typeof geo==="object"?{cc:String(geo.cc||""),country:String(geo.country||""),region:String(geo.region||"")}:null; name=S.name;
-  $("#placeName").textContent=name;
-  $("#placeSub").textContent=S.geo?[S.geo.region,S.geo.cc&&S.geo.cc.toUpperCase()!=="IT"?S.geo.country:""].filter(Boolean).join(", "):"";
+  S.lat=lat; S.lon=lon; S.name=String(name||"").replace(/\s*\((Provincia|Province|Città metropolitana)[^)]*\)\s*$/i,"").slice(0,80); S.geo=geo&&typeof geo==="object"?{cc:String(geo.cc||""),country:String(geo.country||""),region:String(geo.region||""),admin2:String(geo.admin2||"")}:null; name=S.name;
+  // "Viserba (Rimini)": nome grande "Viserba", sotto "Rimini, Emilia-Romagna"
+  const m=name.match(/^(.*?)\s*\(([^)]+)\)$/);
+  $("#placeName").textContent=m?m[1]:name;
+  $("#placeSub").textContent=[m&&m[2],S.geo&&S.geo.region,S.geo&&S.geo.cc&&S.geo.cc.toUpperCase()!=="IT"?S.geo.country:""].filter(Boolean).join(", ");
   store("mp_last",{lat:S.lat,lon:S.lon,name,geo:S.geo});
   S.recent=[{name,lat:S.lat,lon:S.lon,geo:S.geo},...S.recent.filter(r=>!near(r,S))].slice(0,6); store("mp_recent",S.recent);
   updateStar(); refresh(true);
@@ -682,8 +752,9 @@ async function refresh(full){
   if(busy||S.lat==null) return; busy=true; $("#refreshBtn").classList.add("spin");
   if(full&&!S.cons) $("#app").innerHTML=`<div class="loader">Carico il meteo…</div>`;
   try{
-    const [D,Mr,R]=await Promise.all([loadForecast(S.lat,S.lon),loadMarine(S.lat,S.lon),radarNow(S.lat,S.lon).catch(()=>null)]);
-    S.data=D; S.marine=Mr; S.radar=R; S.cons=consensus(D);
+    const [D,Mr,R,ST,AL,US]=await Promise.all([loadForecast(S.lat,S.lon),loadMarine(S.lat,S.lon),radarNow(S.lat,S.lon).catch(()=>null),
+      fetchJSON("dati/stazioni.json",0),fetchJSON("dati/allerte.json",0),loadUsAlerts().catch(()=>[])]);
+    S.data=D; S.marine=Mr; S.radar=R; S.elev=D.elevation; S.obs=nearStation(ST); S.allerte=AL; S.usAlerts=US; S.cons=consensus(D);
     store("mp_cache",{lat:S.lat,lon:S.lon,at:Date.now(),D,Mr});
     render(); checkRain();
   }catch(e){
