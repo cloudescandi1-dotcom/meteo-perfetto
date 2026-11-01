@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-cP+SCXojlNCSK9xSw1XHgEVXhLEysfqRmV4bTsuAYOw=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-DUhItSjKSnbnC52unDSswE/7hOJGuLrPVRR3CNVHfWw=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1a33">
 <meta name="description" content="Meteo Perfetto: cosa succede adesso, nelle prossime ore e nella settimana.">
@@ -91,7 +91,7 @@
   .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .fact{background:rgba(0,0,0,.14);border-radius:14px;padding:10px 12px;min-width:0}
   .fact small{display:block;color:var(--mut);font-size:12px}
-  .fact b{font-size:17px;font-weight:600;display:block;margin-top:2px;white-space:nowrap}
+  .fact b{font-size:17px;font-weight:600;display:block;margin-top:2px;line-height:1.2;overflow-wrap:anywhere}
   .fact em{font-style:normal;color:var(--mut);font-size:12px}
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border-radius:999px;background:rgba(0,0,0,.2);color:var(--mut)}
   .chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
@@ -551,7 +551,9 @@ function render(){
   const tmax=Math.max(...today.map(h=>h.temp)), tmin=Math.min(...today.map(h=>h.temp));
   const [rl,rc]=reliability(cur);
   const st=C.steps, maxmm=Math.max(.4,...st.map(s=>s.mm));
-  const bars=st.map((s,k)=>{ const wet=s.share>=.5||(k===0&&isWet(cur.code)); const h=wet?Math.max(18,Math.min(100,s.mm/maxmm*100)):8; return `<i class="${wet?"":"dry"}" style="height:${h}%"></i>`; }).join("");
+  // pioggia in arrivo vista dal radar: le barre si colorano dal momento previsto
+  const etaRadar=R&&R.covered&&R.eta!=null&&R.eta<=120?R.eta:null;
+  const bars=st.map((s,k)=>{ const wet=s.share>=.5||(k===0&&isWet(cur.code))||(etaRadar!=null&&(s.t-Date.now())/6e4>=etaRadar-7); const h=wet?Math.max(18,Math.min(100,s.mm/maxmm*100)):8; return `<i class="${wet?"":"dry"}" style="height:${h}%"></i>`; }).join("");
   const marine=marineNow();
   const ds=new Date().toISOString().slice(0,10), sun=C.sun[Object.keys(C.sun).find(k=>k===localDate(new Date()))]||{};
   const moon=moonPhase(new Date());
@@ -569,7 +571,7 @@ function render(){
         </div>
       </div>
       <div class="nowcast">
-        <div class="msg">${UMB(isWet(cur.code)||st.some(s=>s.share>=.5))} ${nowcastText(C,R,cur)}</div>
+        <div class="msg">${UMB(isWet(cur.code)||st.some(s=>s.share>=.5)||etaRadar!=null||(R&&R.covered&&R.dist!=null&&R.dist<15))} ${nowcastText(C,R,cur)}</div>
         ${st.length?`<div class="bars">${bars}</div><div class="bars-lbl"><span>Ora</span><span>${hm(st[Math.min(3,st.length-1)].t)}</span><span>${hm(st[st.length-1].t)}</span></div>`:""}
       </div>
       ${offi.length?offi.slice(0,2).map(a=>`<div class="official l${a.l}"><span class="dot"></span><div><b>${esc(a.titolo)}</b><small>${esc(periodo(a))}</small></div></div>`).join(""):""}
