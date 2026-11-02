@@ -83,6 +83,8 @@ licenses and terms, including:
   - Allerte ufficiali / official alerts: MeteoAlarm (EUMETNET) — https://meteoalarm.org; NWS (USA) — https://www.weather.gov
   - Osservazioni aeroportuali / airport observations: NOAA Aviation Weather Center — https://aviationweather.gov
   - Mappe / map tiles: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright
+  - Animazione di caricamento / loading animation: Thinking Orbs (MIT), (c) 2026 Jakub Antalik —
+    https://github.com/Jakubantalik/thinking-orbs (testo in LICENZE-TERZE-PARTI.md)
 
 Il Titolare non rivendica alcun diritto su tali componenti di terze parti.
 The Owner claims no rights over such third-party components.
