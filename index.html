@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-0HVNB5sb6Sq/Qdrz4r/VQdGlClg1Xf6fkD5go7QXuD4='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-2yMok0RN/lBhix3aBGyTRKOxeS+AXzZicQ9YW2sCqP0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1a33">
 <meta name="description" content="Meteo Perfetto: cosa succede adesso, nelle prossime ore e nella settimana.">
@@ -238,6 +238,8 @@
 
 <script>
 "use strict";
+// Niente incorniciamento da altri siti
+if(window.top!==window.self){try{window.top.location=window.self.location.href;}catch(e){document.documentElement.innerHTML="";}}
 // Impedisce ad altri siti di mostrare l'app dentro una loro pagina
 if(window.top!==window.self){ document.body.innerHTML='<p style="padding:20px"><a href="./" target="_top" rel="noopener" style="color:#7cc8ff">Apri Meteo Perfetto</a></p>'; throw new Error("incorniciata"); }
 const $=s=>document.querySelector(s);
