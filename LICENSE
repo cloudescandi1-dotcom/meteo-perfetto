@@ -77,7 +77,7 @@ This license applies only to the Owner's ORIGINAL code and content. The Software
 uses third-party services and libraries that remain subject to their own
 licenses and terms, including:
 
-  - Leaflet (BSD-2-Clause) — https://leafletjs.com
+  - Leaflet (BSD-2-Clause) — https://leafletjs.com (copia in lib/leaflet/, testo in LICENZE-TERZE-PARTI.md)
   - Dati meteo / weather data: Open-Meteo — https://open-meteo.com
   - Radar: RainViewer — https://www.rainviewer.com
   - Allerte ufficiali / official alerts: MeteoAlarm (EUMETNET) — https://meteoalarm.org; NWS (USA) — https://www.weather.gov
