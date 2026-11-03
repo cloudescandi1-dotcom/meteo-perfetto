@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-aUMPRJNQsXKY6PxMuuyA3Si4uGfJkCeDbhQ+kPB7XGo=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-0HVNB5sb6Sq/Qdrz4r/VQdGlClg1Xf6fkD5go7QXuD4=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://tilecache.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://marine-api.open-meteo.com https://geocoding-api.open-meteo.com https://api.rainviewer.com https://unpkg.com https://api.weather.gov https://api-bdc.io; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1a33">
 <meta name="description" content="Meteo Perfetto: cosa succede adesso, nelle prossime ore e nella settimana.">
@@ -179,6 +179,11 @@
   .err{background:rgba(255,143,143,.12);border:1px solid rgba(255,143,143,.4);padding:14px;border-radius:16px}
   footer{text-align:center;color:var(--mut);font-size:11px;margin-top:22px;line-height:1.7}
   footer a{color:var(--mut)}
+  .consenso{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:1200;max-width:560px;margin:0 auto;padding:14px 16px;border-radius:18px;background:#14213d;border:1px solid var(--card-b);box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:13px;line-height:1.5}
+  .consenso p{margin:0 0 10px}
+  .consenso a{color:var(--acc)}
+  .c-btn{display:flex;gap:10px}
+  .c-btn button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--card-b);background:var(--card);font-weight:700}
   .hidden{display:none!important}
   .topband{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--sky1);z-index:900;pointer-events:none;transition:background .6s}
   .official{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:14px;margin-bottom:8px;border:1px solid}
@@ -212,8 +217,14 @@
   <main id="app"><div class="loader"><canvas class="orb" aria-hidden="true"></canvas>Carico il meteo…</div></main>
   <footer>
     © 2026 Scandi · Tutti i diritti riservati.<br>
-    Dati <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> · Mappa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+    Dati <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Radar <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> · Mappa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a><br>
+    <a href="privacy.html">Privacy e cookie</a> · <a href="#" id="cambiaScelta">Cambia scelta</a>
   </footer>
+</div>
+
+<div class="consenso hidden" id="consenso" role="dialog" aria-label="Scelta su cookie e memoria del dispositivo">
+  <p><strong>Niente pubblicità, niente tracciamento.</strong> Se accetti, Meteo Perfetto ricorda sul tuo dispositivo i luoghi preferiti e l'ultimo luogo, e usa un servizio esterno per dare un nome alla tua posizione. Se rifiuti, funziona lo stesso ma non ricorda niente quando chiudi la pagina. <a href="privacy.html">Dettagli</a></p>
+  <div class="c-btn"><button id="cRifiuta" type="button">Rifiuta</button><button id="cAccetta" type="button">Accetta</button></div>
 </div>
 
 <div class="sheet-bg" id="sheetBg"></div>
@@ -273,8 +284,24 @@ const giornoSett=d=>LT(d).toLocaleDateString("it-IT",{weekday:"short",timeZone:"
 const hm=d=>pad(LT(d).getUTCHours())+":"+pad(LT(d).getUTCMinutes());
 const near=(a,b)=>Math.abs(a.lat-b.lat)<.01&&Math.abs(a.lon-b.lon)<.01;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function store(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
-function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}}
+// Consenso: finché non si accetta, niente resta sul dispositivo (solo memoria della pagina)
+const MEM={};
+function consenso(){try{return localStorage.getItem("mp_consenso");}catch(e){return null;}}
+function store(k,v){ if(consenso()!=="si"){MEM[k]=v;return;} try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
+function load(k,d){ if(consenso()!=="si") return k in MEM?MEM[k]:d; try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;} }
+function scegli(si){
+  try{
+    if(si){ localStorage.setItem("mp_consenso","si");
+      for(const k in MEM) if(k==="mp_last"||localStorage.getItem(k)==null) localStorage.setItem(k,JSON.stringify(MEM[k]));
+      location.reload(); return; }
+    localStorage.clear(); localStorage.setItem("mp_consenso","no");
+  }catch(e){}
+  $("#consenso").classList.add("hidden");
+}
+function mostraConsenso(){ $("#consenso").classList.remove("hidden"); }
+$("#cAccetta").onclick=()=>scegli(true);
+$("#cRifiuta").onclick=()=>scegli(false);
+$("#cambiaScelta").onclick=e=>{e.preventDefault();mostraConsenso();};
 const DIRS=["N","NE","E","SE","S","SO","O","NO"];
 const dirTxt=d=>d==null?"":DIRS[Math.round(((d%360)+360)%360/45)%8];
 function arrow(deg){ // la freccia indica dove va il vento
@@ -746,6 +773,7 @@ function locate(fallback){
   navigator.geolocation.getCurrentPosition(p=>placeFromGps(p.coords.latitude,p.coords.longitude),()=>{ if(fallback) fallback(); else showErr("Posizione non concessa. Tocca il nome in alto per cercare una città."); },{enableHighAccuracy:true,timeout:10000});
 }
 async function placeFromGps(lat,lon){
+  if(consenso()!=="si"){ setPlace(lat,lon,"La mia posizione"); return; }   // senza consenso la posizione non va al servizio dei nomi
   const j=await fetchJSON(`https://api-bdc.io/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=it`,0);
   if(!j){ setPlace(lat,lon,"La mia posizione"); return; }
   const prov=((j.localityInfo&&j.localityInfo.administrative)||[]).find(a=>a.adminLevel===6);
@@ -835,6 +863,7 @@ const last=load("mp_last",null);
 if(last&&last.lat!=null) setPlace(last.lat,last.lon,last.name,last.geo);
 else locate(()=>setPlace(44.0807,12.5276,"Viserba (Rimini)"));
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
+if(consenso()==null) mostraConsenso();
 </script>
 </body>
 </html>
